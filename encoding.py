@@ -28,27 +28,30 @@ class Embedding(nn.Module):
     def forward(self,ids):
         return self.embedding(ids)
     
-    def pos_encode(self,text):
+    def pos_encoding(self,seq_len):
         
-        ids = self.bpe.encode(text)
-        seq_len = len(ids)
+        device = self.embedding.weight.device
+        d_model = self.d_model
         
-        PE = torch.zeros((seq_len, self.d_model), device=self.embedding.weight.device)
+        position = torch.arange(seq_len, device=device).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2, device=device) * (-torch.log(torch.tensor(10000.0)) / d_model))
         
-        for pos in range (seq_len):
-            for i in range(0,self.d_model,2):
-                PE[pos,i] = torch.sin(pos/(10000**(i/self.d_model)))
-                if i+1 < self.d_model :PE[pos,i+1] = torch.cos(pos/(10000**(i/self.d_model)))
+        PE = torch.zero((seq_len,d_model),device = device)
+        
+        PE[:,0::2] = torch.sin(position*div_term)
+        PE[:,1::2] = torch.cos(position*div_term)
         
         return PE
     
     def get_embeddings(self,text):
         
         ids = torch.tensor(self.bpe.encode(text), dtype=torch.long)
-        PE = self.pos_encode(text)
+        PE = self.pos_encode(len(ids))
         EM = self.forward(ids)
         
         return PE + EM
+    
+    #todo : more opti on the PE part 
     
     
     
