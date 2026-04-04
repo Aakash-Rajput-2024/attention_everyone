@@ -1,6 +1,7 @@
 from collections import defaultdict
 import json 
 import os
+import numpy as np
 
 class BPEtokeniser():
     
@@ -120,6 +121,8 @@ class BPEtokeniser():
             return all_tokens
             
         return [self.token_to_id.get(tok,self.token_to_id["<unk>"]) for tok in all_tokens]
+    
+
     
     def decode(self,ids):
         tokens = [self.id_to_token[i] for i in ids]
