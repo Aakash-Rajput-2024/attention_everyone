@@ -52,14 +52,3 @@ class Embedding(nn.Module):
         return PE + EM
     
     #todo : more opti on the PE part 
-    
-    
-    
-        
-        
-        
-        
-        
-        
-        
-
