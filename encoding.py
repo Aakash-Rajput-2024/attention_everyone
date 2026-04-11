@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 from bpe import BPEtokeniser
 import os
-import numpy as np
-
 
 
 class Embedding(nn.Module):
@@ -36,7 +34,7 @@ class Embedding(nn.Module):
         position = torch.arange(seq_len, device=device).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2, device=device) * (-torch.log(torch.tensor(10000.0)) / d_model))
         
-        PE = torch.zero((seq_len,d_model),device = device)
+        PE = torch.zeros((seq_len, d_model), device=device)
         
         PE[:,0::2] = torch.sin(position*div_term)
         PE[:,1::2] = torch.cos(position*div_term)
@@ -46,7 +44,7 @@ class Embedding(nn.Module):
     def get_embeddings(self,text):
         
         ids = torch.tensor(self.bpe.encode(text), dtype=torch.long)
-        PE = self.pos_encode(len(ids))
+        PE = self.pos_encoding(len(ids))
         EM = self.forward(ids)
         
         return PE + EM
