@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 class attention_block(nn.Module):
-    """Single-head attention (reference only — not used in main pipeline)."""
+
 
     def __init__(self, d_model=512):
         super().__init__()
@@ -21,7 +21,7 @@ class attention_block(nn.Module):
 
 
 class SinusoidalPositionalEncoding(nn.Module):
-    """Fixed sinusoidal PE (Vaswani et al., Sec. 3.5), added to token embeddings."""
+
 
     def __init__(self, d_model, max_len=5000, dropout=0.1):
         super().__init__()
@@ -58,23 +58,20 @@ class MultiHeadAttention(nn.Module):
         self.Wv = nn.Linear(d_model, d_model)
         self.Wo = nn.Linear(d_model, d_model)
 
-        # Paper Sec 5.4: dropout applied to attention weights
+      
         self.attn_drop = nn.Dropout(dropout)
 
     def forward(self, x, x_en=None):
-        """
-        Self-attention:  x_en=None     → Q, K, V all from x.
-        Cross-attention: x_en provided → Q from x (decoder), K/V from x_en (encoder memory).
-        """
+        
         B, Tq, _ = x.shape
 
         if x_en is None:
-            # Self-attention: Q, K, V all from x
+           
             Q = self.Wq(x).view(B, Tq, self.total_head, self.dk).transpose(1, 2)
             K = self.Wk(x).view(B, Tq, self.total_head, self.dk).transpose(1, 2)
             V = self.Wv(x).view(B, Tq, self.total_head, self.dk).transpose(1, 2)
         else:
-            # Cross-attention: Q from decoder, K/V from encoder memory
+         
             Tk = x_en.shape[1]
             Q = self.Wq(x).view(B, Tq, self.total_head, self.dk).transpose(1, 2)
             K = self.Wk(x_en).view(B, Tk, self.total_head, self.dk).transpose(1, 2)
@@ -89,7 +86,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class MaskedMultiHeadAttention(nn.Module):
-    """Causal (autoregressive) multi-head self-attention for the decoder."""
+
 
     def __init__(self, d_model=512, total_head=8, dropout=0.0):
         super().__init__()
@@ -107,7 +104,7 @@ class MaskedMultiHeadAttention(nn.Module):
         self.attn_drop = nn.Dropout(dropout)
 
     def forward(self, x):
-        # Q, K, V all from x — this is decoder self-attention only
+       
         B, T, _ = x.shape
 
         Q = self.Wq(x).view(B, T, self.total_head, self.dk).transpose(1, 2)
@@ -139,18 +136,18 @@ class Encoder(nn.Module):
             nn.ReLU(),
             nn.Linear(4 * d_model, d_model),
         )
-        # Dropout applied to sublayer output before residual add (paper Sec 5.4)
+       
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        # Pre-LN: norm → sublayer → dropout → residual add
+
         x = x + self.dropout(self.MHA(self.ln1(x)))
         x = x + self.dropout(self.ffn(self.ln2(x)))
         return x
 
 
 class DecoderLayer(nn.Module):
-    """One decoder block: masked self-attn → cross-attn → FFN. Pre-LN throughout."""
+   
 
     def __init__(self, d_model=512, total_head=8, dropout=0.1):
         super().__init__()
@@ -169,17 +166,15 @@ class DecoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, x_en=None):
-        # Pre-LN masked self-attention
+
         x = x + self.dropout(self.MMHA(self.ln1(x)))
-        # Pre-LN cross-attention (x_en = encoder memory)
         x = x + self.dropout(self.MHA(self.ln2(x), x_en))
-        # Pre-LN FFN
         x = x + self.dropout(self.ffn(self.ln3(x)))
         return x
 
 
 class Decoder(nn.Module):
-    """Standalone single-layer decoder (reference). FullTransformer uses DecoderLayer directly."""
+  
 
     def __init__(self, d_model=512, vocab_size=1000, total_head=8, dropout=0.1):
         super().__init__()

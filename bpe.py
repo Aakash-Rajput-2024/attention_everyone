@@ -3,17 +3,15 @@ from __future__ import annotations
 from collections import defaultdict
 import json
 
-# Fixed special token IDs — must match train.py constants
-PAD_TOKEN = "<pad>"  # 0
-BOS_TOKEN = "<bos>"  # 1
-EOS_TOKEN = "<eos>"  # 2
-UNK_TOKEN = "<unk>"  # 3
+PAD_TOKEN = "<pad>"
+BOS_TOKEN = "<bos>"
+EOS_TOKEN = "<eos>"
+UNK_TOKEN = "<unk>"
 SPECIAL_TOKENS = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, UNK_TOKEN]
 PAD, BOS, EOS, UNK = 0, 1, 2, 3
 
 
 class BPETokeniser:
-
 
     def __init__(self, num_merges: int = 1000):
         self.num_merges = num_merges
@@ -23,7 +21,6 @@ class BPETokeniser:
         self.stoi: dict[str, int] = {}
 
     def train(self, text: str) -> None:
-
         vocab = self._get_vocab(text)
         for i in range(self.num_merges):
             pairs = self._get_stats(vocab)
@@ -61,19 +58,14 @@ class BPETokeniser:
         return new_vocab
 
     def _build_vocab(self, vocab: dict) -> None:
-
         tokens: set[str] = set()
         for word in vocab:
             for tok in word:
                 tokens.add(tok)
-
         self.itos = SPECIAL_TOKENS + sorted(tokens - set(SPECIAL_TOKENS))
         self.stoi = {tok: i for i, tok in enumerate(self.itos)}
 
-
-
     def _encode_word(self, word: str) -> list[str]:
-       
         tokens = list(word) + ["</w>"]
         while True:
             pairs = [(tokens[i], tokens[i + 1]) for i in range(len(tokens) - 1)]
@@ -89,7 +81,6 @@ class BPETokeniser:
         return tokens
 
     def encode(self, text: str) -> list[int]:
-    
         ids: list[int] = []
         for word in text.split():
             for tok in self._encode_word(word):
@@ -97,7 +88,6 @@ class BPETokeniser:
         return ids
 
     def decode(self, ids: list[int]) -> str:
-
         parts: list[str] = []
         for i in ids:
             if i in (PAD, BOS):
@@ -109,42 +99,29 @@ class BPETokeniser:
                 if tok in SPECIAL_TOKENS:
                     continue
                 parts.append(tok)
-
         return "".join(parts).replace("</w>", " ").strip()
 
     def save(self, path: str) -> None:
         with open(path, "w", encoding="utf-8") as f:
-            json.dump({
-                "merges": list(self.merges),
-                "itos": self.itos,
-                "num_merges": self.num_merges,
-            }, f)
+            json.dump({"merges": list(self.merges), "itos": self.itos, "num_merges": self.num_merges}, f)
 
     def load(self, path: str) -> None:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         self.merges = [tuple(p) for p in data["merges"]]
         self.merge_ranks = {pair: i for i, pair in enumerate(self.merges)}
-
         if "itos" in data:
-            # New format — direct load
             self.itos = data["itos"]
         else:
-            # Old format stored "token_to_ids" without guaranteed special token positions.
-            # Rebuild itos so specials are fixed at 0-3.
-            print("  [bpe] Old bpe.json format detected — rebuilding itos with correct special tokens.")
+            # old format had "token_to_ids" — rebuild with specials at 0-3
+            print("  [bpe] old format detected, rebuilding itos")
             old_tokens = set(data.get("token_to_ids", {}).keys())
-            subword_tokens = sorted(old_tokens - set(SPECIAL_TOKENS))
-            self.itos = SPECIAL_TOKENS + subword_tokens
-
+            self.itos = SPECIAL_TOKENS + sorted(old_tokens - set(SPECIAL_TOKENS))
         self.stoi = {tok: i for i, tok in enumerate(self.itos)}
         self.num_merges = data.get("num_merges", len(self.merges))
 
-
-
     @classmethod
     def from_itos(cls, itos: list[str], merges: list | None = None) -> "BPETokeniser":
-        """Reconstruct vocab from a checkpoint's itos + merges lists."""
         obj = cls.__new__(cls)
         obj.itos = list(itos)
         obj.stoi = {tok: i for i, tok in enumerate(obj.itos)}
@@ -155,26 +132,19 @@ class BPETokeniser:
 
     def __len__(self) -> int:
         return len(self.itos)
+
+
 if __name__ == "__main__":
     import os
-
-    tokenizer_path = "bpe.json"
-    data_path = "data/input (1).txt"
-
     tok = BPETokeniser(num_merges=1000)
-
-    if os.path.exists(tokenizer_path):
-        print("Loading existing tokenizer...")
-        tok.load(tokenizer_path)
+    if os.path.exists("bpe.json"):
+        tok.load("bpe.json")
     else:
-        print(f"Training tokenizer on {data_path} ...")
-        tok.train(open(data_path, encoding="utf-8").read())
-        tok.save(tokenizer_path)
-        print("Tokenizer saved.")
+        tok.train(open("data/input (1).txt", encoding="utf-8").read())
+        tok.save("bpe.json")
 
     text = "To be or not to be that is the question"
-    print("\nOriginal :", text)
+    print("Original :", text)
     print("Segments :", [tok.itos[i] for i in tok.encode(text)])
-    print("IDs      :", tok.encode(text))
     print("Decoded  :", tok.decode(tok.encode(text)))
     print(f"Vocab size: {len(tok):,}")
